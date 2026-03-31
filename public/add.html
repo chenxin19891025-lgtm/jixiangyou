@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>上传乡村资讯 · 吉乡游</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+QingKe+HuangYou&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.css">
+<style>
+body { padding-top: 64px; background: var(--bg-deep); }
+
+.add-hero {
+  background: linear-gradient(135deg, rgba(0,229,195,0.06), rgba(124,77,255,0.04));
+  border-bottom: 1px solid var(--glass-border);
+  padding: 48px 0 32px;
+  text-align: center;
+}
+.add-hero h1 { font-size: 2rem; margin-bottom: 8px; }
+.add-hero p { color: var(--text-muted); font-size: 0.95rem; }
+
+.add-layout {
+  display: grid; grid-template-columns: 1fr 320px; gap: 32px;
+  padding: 40px 0 80px; align-items: start;
+}
+
+/* Step indicators */
+.steps {
+  display: flex; gap: 0; margin-bottom: 32px;
+}
+.step {
+  display: flex; align-items: center; gap: 8px; flex: 1;
+}
+.step-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+  background: var(--glass); border: 1px solid var(--glass-border);
+  color: var(--text-muted);
+}
+.step.active .step-num { background: var(--primary); border-color: var(--primary); color: var(--bg-deep); }
+.step.done .step-num { background: var(--gold); border-color: var(--gold); color: var(--bg-deep); }
+.step-label { font-size: 0.8rem; color: var(--text-muted); }
+.step.active .step-label { color: var(--primary); font-weight: 600; }
+.step-line { flex: 1; height: 1px; background: var(--glass-border); margin: 0 8px; }
+
+/* Form card */
+.form-card {
+  background: var(--bg-card); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg); padding: 28px; margin-bottom: 20px;
+}
+.form-card-title {
+  font-size: 1rem; font-weight: 700; margin-bottom: 20px;
+  display: flex; align-items: center; gap: 8px; color: var(--primary);
+}
+
+/* Category selector */
+.cat-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 4px;
+}
+.cat-option {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 14px 8px; border-radius: 12px; cursor: pointer;
+  border: 2px solid var(--glass-border); background: var(--glass);
+  transition: all 0.2s; text-align: center;
+}
+.cat-option:hover { border-color: rgba(255,255,255,0.2); }
+.cat-option.selected {
+  border-color: var(--sc, var(--primary));
+  background: var(--sb, var(--primary-dim));
+}
+.cat-option-icon { font-size: 1.8rem; }
+.cat-option-name { font-size: 0.78rem; font-weight: 600; }
+.cat-option-desc { font-size: 0.68rem; color: var(--text-muted); }
+
+/* Image upload zone */
+.upload-area {
+  border: 2px dashed var(--glass-border); border-radius: var(--radius);
+  padding: 28px; text-align: center; cursor: pointer;
+  transition: all 0.25s; color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.upload-area.dragover {
+  border-color: var(--primary); background: var(--primary-dim); color: var(--primary);
+}
+.upload-area .u-icon { font-size: 2.2rem; margin-bottom: 8px; }
+.upload-area p { font-size: 0.85rem; margin: 0; }
+.upload-area small { font-size: 0.75rem; color: var(--text-dim); }
+
+/* Preview images */
+.img-previews {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;
+}
+.preview-wrap {
+  position: relative; width: 80px; height: 80px;
+}
+.preview-img {
+  width: 100%; height: 100%; object-fit: cover; border-radius: 8px;
+  border: 1px solid var(--glass-border);
+}
+.preview-remove {
+  position: absolute; top: -6px; right: -6px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--coral); color: #fff; font-size: 0.7rem;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: none; line-height: 1;
+}
+
+/* Location picker */
+.location-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;
+}
+
+/* Submit button */
+.submit-btn {
+  width: 100%; padding: 16px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--primary), #00b8a0);
+  color: var(--bg-deep); font-weight: 700; font-size: 1.05rem;
+  cursor: pointer; border: none;
+  box-shadow: 0 4px 24px rgba(0,229,195,0.35);
+  transition: all 0.25s;
+}
+.submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,229,195,0.5); }
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Tips sidebar */
+.tips-card {
+  background: var(--bg-card); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px;
+  position: sticky; top: 84px;
+}
+.tips-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; color: var(--gold); }
+.tips-list { display: flex; flex-direction: column; gap: 10px; }
+.tip-item { display: flex; gap: 10px; font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+.tip-icon { flex-shrink: 0; }
+
+/* Success overlay */
+.success-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(6,13,24,0.97);
+  display: none; align-items: center; justify-content: center;
+  flex-direction: column; gap: 20px; text-align: center;
+}
+.success-overlay.show { display: flex; animation: fadeIn 0.4s ease; }
+.success-icon { font-size: 5rem; animation: float 2s ease-in-out infinite; }
+.success-title { font-family: var(--font-head); font-size: 2rem; color: var(--primary); }
+.success-sub { color: var(--text-muted); font-size: 1rem; }
+.success-actions { display: flex; gap: 12px; margin-top: 8px; }
+
+@media (max-width: 900px) {
+  .add-layout { grid-template-columns: 1fr; }
+  .tips-card { position: static; }
+  .cat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Navbar ─────────────────────────────────────────────────── -->
+<nav class="navbar">
+  <div class="navbar-brand">
+    <span class="logo-icon">🌿</span>
+    <div>
+      <div>吉乡游</div>
+      <div class="brand-sub">JiVillage · 发现吉林乡野</div>
+    </div>
+  </div>
+  <div class="navbar-nav">
+    <a href="/index.html" class="nav-link">首页</a>
+    <a href="/map.html" class="nav-link">地图</a>
+    <a href="/add.html" class="nav-link active nav-btn">+ 上传资讯</a>
+  </div>
+</nav>
+
+<!-- ── Hero ───────────────────────────────────────────────────── -->
+<div class="add-hero">
+  <h1 class="section-title">📍 上传乡村旅游资讯</h1>
+  <p>分享你发现的宝藏乡村景点，帮助更多旅行者找到吉林的隐秘之美</p>
+</div>
+
+<div class="container">
+  <div class="add-layout">
+
+    <!-- Form -->
+    <div>
+      <!-- Step indicator -->
+      <div class="steps" style="margin: 24px 0 28px">
+        <div class="step active" id="step-1">
+          <div class="step-num">1</div>
+          <div class="step-label">基本分类</div>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" id="step-2">
+          <div class="step-num">2</div>
+          <div class="step-label">详细信息</div>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" id="step-3">
+          <div class="step-num">3</div>
+          <div class="step-label">图片上传</div>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" id="step-4">
+          <div class="step-num">4</div>
+          <div class="step-label">完成发布</div>
+        </div>
+      </div>
+
+      <!-- Step 1: Category -->
+      <div class="form-card">
+        <div class="form-card-title">📂 选择旅游要素分类</div>
+        <div class="cat-grid" id="cat-grid">
+          <div class="cat-option" data-cat="food" style="--sc:#ff8c42;--sb:rgba(255,140,66,0.12)" onclick="selectCat(this)">
+            <div class="cat-option-icon">🍜</div>
+            <div class="cat-option-name">吃 · 美食</div>
+            <div class="cat-option-desc">农家菜·民族料理</div>
+          </div>
+          <div class="cat-option" data-cat="stay" style="--sc:#a78bfa;--sb:rgba(167,139,250,0.12)" onclick="selectCat(this)">
+            <div class="cat-option-icon">🏡</div>
+            <div class="cat-option-name">住 · 住宿</div>
+            <div class="cat-option-desc">民宿·农家院·帐篷</div>
+          </div>
+          <div class="cat-option" data-cat="transport" style="--sc:#38bdf8;--sb:rgba(56,189,248,0.12)" onclick="selectCat(this)">
+            <div class="cat-option-icon">🚌</div>
+            <div class="cat-option-name">行 · 交通</div>
+            <div class="cat-option-desc">专线·自驾攻略</div>
+          </div>
+          <div class="cat-option" data-cat="sight" style="--sc:#00e5c3;--sb:rgba(0,229,195,0.12)" onclick="selectCat(this)">
+            <div class="cat-option-icon">🏔</div>
+            <div class="cat-option-name">游 · 景点</div>
+            <div class="cat-option-desc">古镇·山水·遗址</div>
+          </div>
+          <div class="cat-option" data-cat="shop" style="--sc:#f5c842;--sb:rgba(245,200,66,0.12)" onclick="selectCat(this)">
+            <div class="cat-option-icon">🛍</div>
+            <div class="cat-option-name">购 · 购物</div>
+            <div class="cat-option-desc">特产·土货·市集</div>
+          </div>
+          <div class="cat-option" data-cat="fun" style="--sc:#ff6b7a;--sb:rgba(255,107,122,0.12)" onclick="selectCat(this)">
+            <div class="cat-option-icon">🎪</div>
+            <div class="cat-option-name">娱 · 娱乐</div>
+            <div class="cat-option-desc">民俗·体验·研学</div>
+          </div>
+        </div>
+        <div id="cat-error" class="form-error" style="margin-top:6px;display:none">请选择分类</div>
+      </div>
+
+      <!-- Step 2: Details -->
+      <div class="form-card">
+        <div class="form-card-title">📝 填写基本信息</div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="form-group">
+            <label class="form-label">景点/商家名称 <span style="color:var(--coral)">*</span></label>
+            <input class="form-input" id="f-name" placeholder="例：松花湖渔村农家乐" maxlength="50">
+          </div>
+          <div class="form-group">
+            <label class="form-label">所在城市 <span style="color:var(--coral)">*</span></label>
+            <select class="form-select" id="f-city">
+              <option value="">请选择城市</option>
+              <option value="长春市">长春市</option>
+              <option value="吉林市">吉林市</option>
+              <option value="四平市">四平市</option>
+              <option value="辽源市">辽源市</option>
+              <option value="通化市">通化市</option>
+              <option value="白山市">白山市</option>
+              <option value="松原市">松原市</option>
+              <option value="白城市">白城市</option>
+              <option value="延边州">延边朝鲜族自治州</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">详细地址</label>
+            <input class="form-input" id="f-address" placeholder="例：吉林市丰满区松花湖景区入口" maxlength="100">
+          </div>
+          <div class="form-group">
+            <label class="form-label">简介描述 <span style="color:var(--coral)">*</span></label>
+            <textarea class="form-textarea" id="f-desc" placeholder="用100-300字介绍这个地方的特色、亮点，帮助旅行者了解…" maxlength="500"></textarea>
+            <div style="text-align:right;font-size:0.75rem;color:var(--text-dim)" id="desc-char">0/500</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">特色标签 <span style="font-size:0.75rem;color:var(--text-dim)">（用逗号分隔，最多5个）</span></label>
+            <input class="form-input" id="f-tags" placeholder="例：朝鲜族美食,手工冷面,农家菜">
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Extra info -->
+      <div class="form-card">
+        <div class="form-card-title">💡 补充信息（可选）</div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="form-group">
+            <label class="form-label">参考价格</label>
+            <input class="form-input" id="f-price" placeholder="例：人均50元 / 每晚300元起 / 免费">
+          </div>
+          <div class="form-group">
+            <label class="form-label">营业时间</label>
+            <input class="form-input" id="f-hours" placeholder="例：09:00-21:00 / 全天">
+          </div>
+          <div class="form-group">
+            <label class="form-label">联系电话</label>
+            <input class="form-input" id="f-phone" placeholder="例：0432-XXXXXXX" maxlength="20">
+          </div>
+          <!-- GPS -->
+          <div class="form-group">
+            <label class="form-label">GPS 坐标 <span style="font-size:0.75rem;color:var(--text-dim)">（在高德/百度地图点击获取）</span></label>
+            <div class="location-row">
+              <input class="form-input" id="f-lat" placeholder="纬度 例：43.65" type="number" step="0.001">
+              <input class="form-input" id="f-lng" placeholder="经度 例：126.62" type="number" step="0.001">
+            </div>
+            <a href="https://lbs.amap.com/tools/picker" target="_blank" style="font-size:0.78rem;color:var(--primary)">
+              → 点击打开高德坐标拾取工具
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Images -->
+      <div class="form-card">
+        <div class="form-card-title">🖼 上传图片 <span style="font-size:0.8rem;font-weight:400;color:var(--text-muted)">（最多5张，每张≤5MB）</span></div>
+        <div class="upload-area" id="upload-area">
+          <div class="u-icon">📷</div>
+          <p>拖拽图片到此处，或点击选择图片</p>
+          <small>支持 JPG、PNG、WEBP 格式</small>
+        </div>
+        <input type="file" id="file-input" accept="image/*" multiple style="display:none">
+        <div class="img-previews" id="img-previews"></div>
+      </div>
+
+      <!-- Submit -->
+      <button class="submit-btn" id="submit-btn" onclick="submitForm()">
+        🌿 发布乡村资讯
+      </button>
+      <div id="form-error" class="form-error" style="text-align:center;margin-top:12px;display:none"></div>
+    </div>
+
+    <!-- Tips sidebar -->
+    <div>
+      <div class="tips-card">
+        <div class="tips-title">📋 填写建议</div>
+        <div class="tips-list">
+          <div class="tip-item"><span class="tip-icon">✅</span>名称要简洁易懂，方便其他人搜索</div>
+          <div class="tip-item"><span class="tip-icon">📝</span>描述要真实，写出独特亮点和个人体验</div>
+          <div class="tip-item"><span class="tip-icon">📷</span>图片越真实越好，可以拍门面、菜品、环境</div>
+          <div class="tip-item"><span class="tip-icon">🏷</span>标签用简洁词语，如"土鸡炖蘑菇"而非长句</div>
+          <div class="tip-item"><span class="tip-icon">💰</span>价格尽量填写，帮助旅行者做预算</div>
+          <div class="tip-item"><span class="tip-icon">📍</span>填写GPS坐标可让景点在地图上精准显示</div>
+        </div>
+      </div>
+
+      <div class="tips-card" style="background:rgba(0,229,195,0.05);border-color:rgba(0,229,195,0.2)">
+        <div class="tips-title" style="color:var(--primary)">🌿 共建吉乡游</div>
+        <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.7">
+          吉乡游是一个由旅行者共同维护的乡村旅游信息平台。你上传的每一条信息，都在帮助更多人发现吉林乡野的美好。
+        </p>
+      </div>
+
+      <div class="tips-card">
+        <div class="tips-title">🗺 六要素说明</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:0.8rem;color:var(--text-muted)">
+          <div>🍜 <strong style="color:var(--text)">吃</strong> — 农家菜、民族特色餐厅、小吃店</div>
+          <div>🏡 <strong style="color:var(--text)">住</strong> — 民宿、农家院、帐篷营地</div>
+          <div>🚌 <strong style="color:var(--text)">行</strong> — 旅游专线、自驾路线、出行攻略</div>
+          <div>🏔 <strong style="color:var(--text)">游</strong> — 景区、古镇、自然风光</div>
+          <div>🛍 <strong style="color:var(--text)">购</strong> — 特产市场、土货集市</div>
+          <div>🎪 <strong style="color:var(--text)">娱</strong> — 民俗体验、农耕研学、户外运动</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Success overlay -->
+<div class="success-overlay" id="success-overlay">
+  <div class="success-icon">🎉</div>
+  <div class="success-title">发布成功！</div>
+  <div class="success-sub">感谢你为吉乡游贡献了一条乡村资讯</div>
+  <div class="success-sub" id="success-name" style="color:var(--primary)"></div>
+  <div class="success-actions">
+    <a href="#" id="view-spot-btn" class="btn btn-primary">查看详情</a>
+    <a href="/map.html" class="btn btn-outline">查看地图</a>
+    <button onclick="addMore()" class="btn btn-ghost">继续添加</button>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+let selectedCat = '';
+let fileList = [];
+
+// ── Toast ─────────────────────────────────────────────────────
+function showToast(msg, type='success') {
+  const ct = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span class="toast-icon">${type==='success'?'✓':'✕'}</span><span>${msg}</span>`;
+  ct.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+
+// ── Category ──────────────────────────────────────────────────
+function selectCat(el) {
+  document.querySelectorAll('.cat-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedCat = el.dataset.cat;
+  document.getElementById('cat-error').style.display = 'none';
+  updateSteps();
+}
+
+function updateSteps() {
+  const name = document.getElementById('f-name').value.trim();
+  const city = document.getElementById('f-city').value;
+  const desc = document.getElementById('f-desc').value.trim();
+  [1,2,3,4].forEach(i => {
+    const el = document.getElementById('step-' + i);
+    el.classList.remove('active','done');
+  });
+  if (fileList.length > 0) {
+    [1,2,3].forEach(i => document.getElementById('step-'+i).classList.add('done'));
+    document.getElementById('step-4').classList.add('active');
+  } else if (name && city && desc) {
+    [1,2].forEach(i => document.getElementById('step-'+i).classList.add('done'));
+    document.getElementById('step-3').classList.add('active');
+  } else if (selectedCat) {
+    document.getElementById('step-1').classList.add('done');
+    document.getElementById('step-2').classList.add('active');
+  } else {
+    document.getElementById('step-1').classList.add('active');
+  }
+}
+
+// ── Char counter ──────────────────────────────────────────────
+document.getElementById('f-desc').addEventListener('input', e => {
+  document.getElementById('desc-char').textContent = `${e.target.value.length}/500`;
+  updateSteps();
+});
+['f-name','f-city'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateSteps);
+  document.getElementById(id).addEventListener('change', updateSteps);
+});
+
+// ── Image upload ──────────────────────────────────────────────
+const uploadArea = document.getElementById('upload-area');
+const fileInput = document.getElementById('file-input');
+
+uploadArea.addEventListener('click', () => fileInput.click());
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', e => {
+  e.preventDefault(); uploadArea.classList.remove('dragover');
+  handleFiles([...e.dataTransfer.files]);
+});
+fileInput.addEventListener('change', e => handleFiles([...e.target.files]));
+
+function handleFiles(files) {
+  const valid = files.filter(f => f.type.startsWith('image/') && f.size <= 5*1024*1024);
+  if (files.length !== valid.length) showToast('部分图片不合法（非图片或超过5MB）', 'error');
+  const toAdd = valid.slice(0, 5 - fileList.length);
+  fileList = [...fileList, ...toAdd];
+  renderPreviews();
+  updateSteps();
+}
+
+function renderPreviews() {
+  const container = document.getElementById('img-previews');
+  container.innerHTML = fileList.map((f, i) => {
+    const url = URL.createObjectURL(f);
+    return `<div class="preview-wrap">
+      <img class="preview-img" src="${url}" alt="">
+      <button class="preview-remove" onclick="removeImg(${i})">✕</button>
+    </div>`;
+  }).join('');
+  uploadArea.style.display = fileList.length >= 5 ? 'none' : 'block';
+}
+
+function removeImg(idx) {
+  fileList.splice(idx, 1);
+  renderPreviews();
+  updateSteps();
+}
+
+// ── Submit ────────────────────────────────────────────────────
+async function submitForm() {
+  const name = document.getElementById('f-name').value.trim();
+  const city = document.getElementById('f-city').value;
+  const desc = document.getElementById('f-desc').value.trim();
+  const errEl = document.getElementById('form-error');
+
+  // Validate
+  if (!selectedCat) {
+    document.getElementById('cat-error').style.display = 'block';
+    document.getElementById('cat-grid').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  if (!name || !city || !desc) {
+    errEl.textContent = '请填写名称、城市和描述（必填项）';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (desc.length < 10) {
+    errEl.textContent = '描述内容不少于10个字';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = '⏳ 提交中…';
+
+  try {
+    const body = new FormData();
+    body.append('name', name);
+    body.append('category', selectedCat);
+    body.append('city', city);
+    body.append('address', document.getElementById('f-address').value.trim());
+    body.append('desc', desc);
+    body.append('tags', document.getElementById('f-tags').value.trim());
+    body.append('price', document.getElementById('f-price').value.trim());
+    body.append('openHours', document.getElementById('f-hours').value.trim());
+    body.append('phone', document.getElementById('f-phone').value.trim());
+    body.append('lat', document.getElementById('f-lat').value || '43.8');
+    body.append('lng', document.getElementById('f-lng').value || '126.5');
+    fileList.forEach(f => body.append('images', f));
+
+    const res = await fetch('/api/spots', { method: 'POST', body });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    // Show success
+    document.getElementById('success-name').textContent = '「' + data.data.name + '」已成功上传';
+    document.getElementById('view-spot-btn').href = `/spot.html?id=${data.data.id}`;
+    document.getElementById('success-overlay').classList.add('show');
+  } catch(err) {
+    errEl.textContent = err.message || '提交失败，请重试';
+    errEl.style.display = 'block';
+    showToast('提交失败：' + (err.message || '请重试'), 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '🌿 发布乡村资讯';
+  }
+}
+
+function addMore() {
+  document.getElementById('success-overlay').classList.remove('show');
+  // Reset form
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-city').value = '';
+  document.getElementById('f-address').value = '';
+  document.getElementById('f-desc').value = '';
+  document.getElementById('f-tags').value = '';
+  document.getElementById('f-price').value = '';
+  document.getElementById('f-hours').value = '';
+  document.getElementById('f-phone').value = '';
+  document.getElementById('f-lat').value = '';
+  document.getElementById('f-lng').value = '';
+  document.getElementById('desc-char').textContent = '0/500';
+  document.querySelectorAll('.cat-option').forEach(o => o.classList.remove('selected'));
+  selectedCat = ''; fileList = [];
+  renderPreviews();
+  updateSteps();
+}
+
+// Init
+updateSteps();
+</script>
+</body>
+</html>

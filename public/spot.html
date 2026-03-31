@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>景点详情 · 吉乡游</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+QingKe+HuangYou&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.css">
+<style>
+body { padding-top: 64px; }
+
+/* Hero image */
+.spot-hero {
+  position: relative; height: 420px; overflow: hidden;
+}
+.spot-hero-img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 8s ease;
+}
+.spot-hero:hover .spot-hero-img { transform: scale(1.05); }
+.spot-hero-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(6,13,24,0.3) 0%, rgba(6,13,24,0.8) 100%);
+}
+.spot-hero-content {
+  position: absolute; bottom: 32px; left: 0; right: 0;
+}
+.spot-hero-content .container { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.spot-hero-name { font-family: var(--font-head); font-size: 2.4rem; margin-bottom: 12px; line-height: 1.2; }
+.spot-hero-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.spot-hero-score {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(245,200,66,0.15); border: 1px solid rgba(245,200,66,0.3);
+  border-radius: 10px; padding: 8px 16px;
+}
+.spot-hero-score .big-score { font-size: 2rem; font-weight: 700; color: var(--gold); font-family: var(--font-head); }
+.score-stars { display: flex; gap: 2px; }
+.score-stars span { color: var(--gold); font-size: 1rem; }
+
+/* Thumbnails */
+.thumb-strip {
+  display: flex; gap: 6px; margin-top: 16px;
+}
+.thumb-item {
+  width: 70px; height: 52px; border-radius: 6px;
+  object-fit: cover; cursor: pointer; border: 2px solid transparent;
+  transition: all 0.2s; flex-shrink: 0;
+}
+.thumb-item.active, .thumb-item:hover { border-color: var(--primary); }
+
+/* Main layout */
+.spot-main {
+  display: grid; grid-template-columns: 1fr 360px; gap: 32px;
+  padding: 40px 0; align-items: start;
+}
+
+/* Info cards */
+.info-section { margin-bottom: 32px; }
+.info-section-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.info-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+}
+.info-item {
+  background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: var(--radius); padding: 14px 16px;
+}
+.info-item-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+.info-item-value { font-size: 0.92rem; font-weight: 500; }
+
+/* Tags */
+.tags-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+
+/* Description */
+.spot-desc {
+  font-size: 0.95rem; color: var(--text-muted); line-height: 1.8;
+  padding: 20px; background: var(--glass); border-radius: var(--radius);
+  border: 1px solid var(--glass-border); margin-bottom: 24px;
+}
+
+/* Reviews */
+.review-card {
+  background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+}
+.review-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.review-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--primary-dim); display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; flex-shrink: 0; object-fit: cover;
+}
+.review-author { font-weight: 600; font-size: 0.88rem; }
+.review-date { font-size: 0.75rem; color: var(--text-dim); }
+.review-stars { display: flex; gap: 2px; }
+.review-stars span { color: var(--gold); font-size: 0.85rem; }
+.review-content { font-size: 0.88rem; color: var(--text-muted); line-height: 1.7; }
+.review-actions { display: flex; gap: 12px; margin-top: 10px; }
+.helpful-btn {
+  font-size: 0.75rem; color: var(--text-dim); cursor: pointer;
+  display: flex; align-items: center; gap: 4px; background: none;
+  padding: 3px 10px; border-radius: 10px; border: 1px solid var(--glass-border);
+  transition: all 0.2s;
+}
+.helpful-btn:hover { color: var(--primary); border-color: rgba(0,229,195,0.3); }
+.helpful-btn.liked { color: var(--primary); border-color: rgba(0,229,195,0.3); background: var(--primary-dim); }
+
+/* Sidebar sticky card */
+.spot-sidebar { position: sticky; top: 84px; }
+.action-card {
+  background: var(--bg-card); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px;
+}
+.action-price { font-size: 1.6rem; font-family: var(--font-head); color: var(--gold); margin-bottom: 4px; }
+.action-price-sub { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px; }
+.action-btns { display: flex; flex-direction: column; gap: 10px; }
+
+/* Mini map */
+.mini-map-placeholder {
+  height: 160px; border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(0,229,195,0.05), rgba(124,77,255,0.05));
+  border: 1px solid var(--glass-border);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; color: var(--text-muted); cursor: pointer;
+  transition: all 0.2s; text-decoration: none;
+  margin-bottom: 12px;
+}
+.mini-map-placeholder:hover { border-color: var(--primary); background: rgba(0,229,195,0.06); }
+
+/* Write review form */
+.review-form {
+  background: var(--bg-card); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg); padding: 20px; margin-bottom: 24px;
+}
+.review-form-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 16px; }
+.review-input-name, .review-input-content {
+  width: 100%; background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 0.88rem;
+  transition: all var(--transition); margin-bottom: 10px;
+  font-family: var(--font-body);
+}
+.review-input-name { height: 40px; }
+.review-input-content { height: 90px; resize: vertical; }
+.review-input-name:focus, .review-input-content:focus {
+  border-color: var(--primary); background: rgba(0,229,195,0.05);
+  box-shadow: 0 0 0 3px rgba(0,229,195,0.1);
+}
+.star-selector { display: flex; gap: 6px; margin-bottom: 12px; }
+.star-btn {
+  font-size: 1.8rem; cursor: pointer; background: none; border: none;
+  color: var(--text-dim); transition: all 0.15s; line-height: 1;
+}
+.star-btn:hover, .star-btn.lit { color: var(--gold); transform: scale(1.2); }
+.submit-review-btn {
+  width: 100%; padding: 12px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--primary), #00b8a0);
+  color: var(--bg-deep); font-weight: 700; font-size: 0.95rem;
+  cursor: pointer; border: none; transition: all 0.2s;
+}
+.submit-review-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,229,195,0.4); }
+.submit-review-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Breadcrumb */
+.breadcrumb {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px;
+}
+.breadcrumb a { color: var(--primary); }
+.breadcrumb .sep { opacity: 0.4; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .spot-main { grid-template-columns: 1fr; }
+  .spot-sidebar { position: static; }
+  .spot-hero { height: 300px; }
+  .spot-hero-name { font-size: 1.8rem; }
+  .info-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Navbar ─────────────────────────────────────────────────── -->
+<nav class="navbar">
+  <div class="navbar-brand">
+    <span class="logo-icon">🌿</span>
+    <div>
+      <div>吉乡游</div>
+      <div class="brand-sub">JiVillage · 发现吉林乡野</div>
+    </div>
+  </div>
+  <div class="navbar-nav">
+    <a href="/index.html" class="nav-link">首页</a>
+    <a href="/map.html" class="nav-link">地图</a>
+    <a href="/add.html" class="nav-btn">+ 上传资讯</a>
+  </div>
+</nav>
+
+<!-- ── Loading state ────────────────────────────────────────────── -->
+<div id="loading-state" style="display:flex;align-items:center;justify-content:center;min-height:80vh">
+  <div style="text-align:center">
+    <div class="spinner"></div>
+    <div style="color:var(--text-muted);margin-top:16px">加载中…</div>
+  </div>
+</div>
+
+<!-- ── Main content ─────────────────────────────────────────────── -->
+<div id="main-content" style="display:none">
+
+  <!-- Hero -->
+  <div class="spot-hero">
+    <img class="spot-hero-img" id="hero-img" src="" alt="">
+    <div class="spot-hero-overlay"></div>
+    <div class="spot-hero-content">
+      <div class="container">
+        <div>
+          <div id="hero-meta-top" style="margin-bottom:8px"></div>
+          <h1 class="spot-hero-name" id="hero-name">—</h1>
+          <div class="spot-hero-meta" id="hero-meta"></div>
+          <div class="thumb-strip" id="thumb-strip"></div>
+        </div>
+        <div class="spot-hero-score" id="hero-score" style="display:none">
+          <div>
+            <div class="big-score" id="score-num">—</div>
+            <div class="score-stars" id="score-stars"></div>
+            <div style="font-size:0.75rem;color:var(--text-muted)" id="score-count"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Breadcrumb -->
+    <div style="padding-top:24px">
+      <div class="breadcrumb">
+        <a href="/index.html">首页</a>
+        <span class="sep">›</span>
+        <a href="/map.html">乡村地图</a>
+        <span class="sep">›</span>
+        <span id="bc-cat">景点</span>
+        <span class="sep">›</span>
+        <span id="bc-name">—</span>
+      </div>
+    </div>
+
+    <div class="spot-main">
+      <!-- Left: main info -->
+      <div>
+        <!-- Description -->
+        <div class="info-section">
+          <div class="info-section-title">📝 景点介绍</div>
+          <div class="spot-desc" id="spot-desc">加载中…</div>
+          <div class="tags-row" id="spot-tags"></div>
+        </div>
+
+        <!-- Detail info grid -->
+        <div class="info-section">
+          <div class="info-section-title">📌 基本信息</div>
+          <div class="info-grid" id="info-grid"></div>
+        </div>
+
+        <!-- Reviews -->
+        <div class="info-section" id="reviews-section">
+          <div class="info-section-title">💬 用户评价
+            <span id="review-total" style="font-size:0.82rem;font-weight:400;color:var(--text-muted)"></span>
+          </div>
+
+          <!-- Write review -->
+          <div class="review-form">
+            <div class="review-form-title">✍️ 写下你的体验</div>
+            <input class="review-input-name" id="review-author" placeholder="你的昵称（可选）" maxlength="20">
+            <div style="margin-bottom:12px">
+              <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:6px">评分 <span id="star-hint" style="color:var(--gold)"></span></div>
+              <div class="star-selector" id="star-selector">
+                <button class="star-btn" data-v="1">★</button>
+                <button class="star-btn" data-v="2">★</button>
+                <button class="star-btn" data-v="3">★</button>
+                <button class="star-btn" data-v="4">★</button>
+                <button class="star-btn" data-v="5">★</button>
+              </div>
+            </div>
+            <textarea class="review-input-content" id="review-content" placeholder="分享你的真实体验，帮助更多旅行者…" maxlength="500"></textarea>
+            <div id="review-char" style="text-align:right;font-size:0.75rem;color:var(--text-dim);margin-bottom:10px">0/500</div>
+            <button class="submit-review-btn" id="submit-review-btn" onclick="submitReview()">发布评价</button>
+          </div>
+
+          <!-- Review list -->
+          <div id="review-list">
+            <div class="spinner"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: sidebar -->
+      <div class="spot-sidebar">
+        <div class="action-card">
+          <div class="action-price" id="sidebar-price">—</div>
+          <div class="action-price-sub">参考价格</div>
+          <div class="action-btns">
+            <a href="#" id="nav-btn" class="btn btn-primary" target="_blank">
+              🗺 高德地图导航
+            </a>
+            <a href="/map.html" class="btn btn-outline">← 返回地图</a>
+            <a href="/add.html" class="btn btn-ghost" style="font-size:0.85rem">📝 添加更多信息</a>
+          </div>
+        </div>
+
+        <!-- Mini map link -->
+        <a href="#" id="mini-map-link" class="mini-map-placeholder" target="_blank">
+          <div style="font-size:2rem">📍</div>
+          <div style="font-size:0.85rem">点击在地图中查看位置</div>
+          <div style="font-size:0.75rem;color:var(--text-dim)" id="coords-text"></div>
+        </a>
+
+        <!-- Nearby spots -->
+        <div class="card" style="padding:16px" id="nearby-card">
+          <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px">🏘 同城推荐</div>
+          <div id="nearby-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+const CAT_ICONS  = { food:'🍜', stay:'🏡', transport:'🚌', sight:'🏔', shop:'🛍', fun:'🎪' };
+const CAT_NAMES  = { food:'美食', stay:'住宿', transport:'交通', sight:'景点', shop:'购物', fun:'娱乐' };
+const CAT_COLORS = { food:'cat-food', stay:'cat-stay', transport:'cat-transport', sight:'cat-sight', shop:'cat-shop', fun:'cat-fun' };
+const STAR_HINTS = ['', '很差', '一般', '还好', '不错', '很棒！'];
+
+let spotId = new URLSearchParams(location.search).get('id');
+let currentSpot = null;
+let selectedRating = 0;
+
+// ── Toast ─────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const ct = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span class="toast-icon">${type === 'success' ? '✓' : '✕'}</span><span>${msg}</span>`;
+  ct.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+
+// ── Render Stars ──────────────────────────────────────────────
+function stars(n, size = '1rem') {
+  return Array.from({length:5}, (_,i) =>
+    `<span style="color:${i < Math.round(n) ? '#f5c842' : '#4a6880'};font-size:${size}">${i < Math.round(n) ? '★' : '☆'}</span>`
+  ).join('');
+}
+
+// ── Load Spot ─────────────────────────────────────────────────
+async function loadSpot() {
+  if (!spotId) { location.href = '/map.html'; return; }
+  const res = await fetch(`/api/spots/${spotId}`);
+  const { data, success } = await res.json();
+  if (!success) { location.href = '/map.html'; return; }
+  currentSpot = data;
+  renderSpot(data);
+  loadReviews();
+  loadNearby(data.city, data.id);
+}
+
+function renderSpot(s) {
+  document.title = `${s.name} · 吉乡游`;
+
+  // Hero
+  document.getElementById('hero-img').src = s.img;
+  document.getElementById('hero-name').textContent = s.name;
+  document.getElementById('bc-name').textContent = s.name;
+  document.getElementById('bc-cat').textContent = CAT_NAMES[s.category] || '景点';
+  document.getElementById('hero-meta-top').innerHTML =
+    `<span class="cat-badge ${CAT_COLORS[s.category]}">${CAT_ICONS[s.category]} ${CAT_NAMES[s.category]}</span>
+     <span style="font-size:0.82rem;color:rgba(255,255,255,0.7);margin-left:8px">📍 ${s.city}</span>`;
+  document.getElementById('hero-meta').innerHTML =
+    s.address ? `<span style="font-size:0.85rem;color:rgba(255,255,255,0.7)">${s.address}</span>` : '';
+
+  if (s.rating) {
+    document.getElementById('hero-score').style.display = 'flex';
+    document.getElementById('score-num').textContent = s.rating;
+    document.getElementById('score-stars').innerHTML = stars(s.rating, '0.9rem');
+    document.getElementById('score-count').textContent = `${s.reviewCount} 条评价`;
+  }
+
+  // Thumbnails
+  const allImgs = [s.img, ...(s.imgs || [])].filter((v,i,a) => a.indexOf(v) === i);
+  document.getElementById('thumb-strip').innerHTML = allImgs.map((img, i) =>
+    `<img class="thumb-item ${i===0?'active':''}" src="${img}" onclick="switchHero(this, '${img}')" loading="lazy">`
+  ).join('');
+
+  // Description
+  document.getElementById('spot-desc').textContent = s.desc;
+  document.getElementById('spot-tags').innerHTML = (s.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+
+  // Info grid
+  const fields = [
+    ['📍 地址', s.address], ['💰 参考价格', s.price],
+    ['🕐 营业时间', s.openHours], ['📞 联系电话', s.phone],
+    ['🏙 所在城市', s.city], ['📂 分类', CAT_NAMES[s.category]]
+  ].filter(f => f[1]);
+  document.getElementById('info-grid').innerHTML = fields.map(([k,v]) => `
+    <div class="info-item">
+      <div class="info-item-label">${k}</div>
+      <div class="info-item-value">${v}</div>
+    </div>`).join('');
+
+  // Sidebar
+  document.getElementById('sidebar-price').textContent = s.price || '免费 / 待定';
+  const navUrl = `https://uri.amap.com/marker?position=${s.lng},${s.lat}&name=${encodeURIComponent(s.name)}`;
+  document.getElementById('nav-btn').href = navUrl;
+  document.getElementById('mini-map-link').href = navUrl;
+  document.getElementById('coords-text').textContent = `${s.lat.toFixed(3)}°N, ${s.lng.toFixed(3)}°E`;
+
+  // Show
+  document.getElementById('loading-state').style.display = 'none';
+  document.getElementById('main-content').style.display = 'block';
+}
+
+function switchHero(el, src) {
+  document.getElementById('hero-img').src = src;
+  document.querySelectorAll('.thumb-item').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── Load Reviews ──────────────────────────────────────────────
+async function loadReviews() {
+  const res = await fetch(`/api/spots/${spotId}/reviews`);
+  const { data, total } = await res.json();
+  document.getElementById('review-total').textContent = total ? `（${total}条）` : '';
+  const list = document.getElementById('review-list');
+  if (!data.length) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">💬</div><p>暂无评价，成为第一个评价者吧</p></div>`;
+    return;
+  }
+  list.innerHTML = data.map(r => `
+    <div class="review-card anim-fade-up" id="rv-${r.id}">
+      <div class="review-header">
+        ${r.avatar
+          ? `<img class="review-avatar" src="${r.avatar}" alt="">`
+          : `<div class="review-avatar">${r.author[0] || '游'}</div>`}
+        <div style="flex:1">
+          <div class="review-author">${r.author || '游客'}</div>
+          <div class="review-stars">${stars(r.rating, '0.85rem')}</div>
+        </div>
+        <div class="review-date">${formatDate(r.createdAt)}</div>
+      </div>
+      <div class="review-content">${escHtml(r.content)}</div>
+      <div class="review-actions">
+        <button class="helpful-btn" id="hb-${r.id}" onclick="markHelpful('${r.id}')">
+          👍 有用 <span id="hc-${r.id}">${r.helpful || 0}</span>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Star selector ──────────────────────────────────────────────
+document.getElementById('star-selector').addEventListener('click', e => {
+  const btn = e.target.closest('.star-btn');
+  if (!btn) return;
+  selectedRating = parseInt(btn.dataset.v);
+  document.querySelectorAll('.star-btn').forEach((b, i) => {
+    b.classList.toggle('lit', i < selectedRating);
+  });
+  document.getElementById('star-hint').textContent = STAR_HINTS[selectedRating] || '';
+});
+
+document.getElementById('review-content').addEventListener('input', e => {
+  document.getElementById('review-char').textContent = `${e.target.value.length}/500`;
+});
+
+// ── Submit review ─────────────────────────────────────────────
+async function submitReview() {
+  const author = document.getElementById('review-author').value.trim();
+  const content = document.getElementById('review-content').value.trim();
+  const btn = document.getElementById('submit-review-btn');
+
+  if (!selectedRating) { showToast('请选择评分', 'error'); return; }
+  if (content.length < 5) { showToast('评价内容不能少于5个字', 'error'); return; }
+
+  btn.disabled = true; btn.textContent = '发布中…';
+  try {
+    const body = new FormData();
+    body.append('author', author || '游客');
+    body.append('rating', selectedRating);
+    body.append('content', content);
+
+    const res = await fetch(`/api/spots/${spotId}/reviews`, { method: 'POST', body });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    showToast('评价发布成功！感谢你的分享 🎉');
+    document.getElementById('review-author').value = '';
+    document.getElementById('review-content').value = '';
+    document.getElementById('review-char').textContent = '0/500';
+    document.getElementById('star-hint').textContent = '';
+    document.querySelectorAll('.star-btn').forEach(b => b.classList.remove('lit'));
+    selectedRating = 0;
+    loadReviews();
+    // Refresh rating
+    const sRes = await fetch(`/api/spots/${spotId}`);
+    const { data: sd } = await sRes.json();
+    if (sd.rating) {
+      document.getElementById('score-num').textContent = sd.rating;
+      document.getElementById('score-stars').innerHTML = stars(sd.rating, '0.9rem');
+      document.getElementById('score-count').textContent = `${sd.reviewCount} 条评价`;
+      document.getElementById('hero-score').style.display = 'flex';
+    }
+  } catch(err) {
+    showToast(err.message || '发布失败，请重试', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '发布评价';
+  }
+}
+
+// ── Helpful vote ──────────────────────────────────────────────
+const likedReviews = new Set(JSON.parse(localStorage.getItem('liked') || '[]'));
+async function markHelpful(reviewId) {
+  if (likedReviews.has(reviewId)) { showToast('你已经点过有用了', 'error'); return; }
+  const res = await fetch(`/api/reviews/${reviewId}/helpful`, { method: 'POST' });
+  const { data } = await res.json();
+  likedReviews.add(reviewId);
+  localStorage.setItem('liked', JSON.stringify([...likedReviews]));
+  document.getElementById('hc-' + reviewId).textContent = data.helpful;
+  document.getElementById('hb-' + reviewId).classList.add('liked');
+}
+
+// ── Nearby ────────────────────────────────────────────────────
+async function loadNearby(city, excludeId) {
+  const res = await fetch(`/api/spots?city=${encodeURIComponent(city)}`);
+  const { data } = await res.json();
+  const nearby = data.filter(s => s.id !== excludeId).slice(0, 4);
+  if (!nearby.length) { document.getElementById('nearby-card').style.display = 'none'; return; }
+  document.getElementById('nearby-list').innerHTML = nearby.map(s => `
+    <a href="/spot.html?id=${s.id}" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--glass-border);cursor:pointer">
+      <img src="${s.img}" style="width:44px;height:44px;border-radius:8px;object-fit:cover" loading="lazy">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
+        <div style="font-size:0.72rem;color:var(--text-muted)">${CAT_ICONS[s.category]} ${s.rating || '新'}</div>
+      </div>
+    </a>`).join('');
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function formatDate(iso) {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+loadSpot();
+</script>
+</body>
+</html>

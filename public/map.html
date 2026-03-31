@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>吉林乡村地图 · 吉乡游</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+QingKe+HuangYou&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.css">
+<!-- ECharts -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+html, body { height: 100%; overflow: hidden; }
+body { display: flex; flex-direction: column; }
+
+/* Layout */
+.map-layout {
+  display: flex; flex: 1;
+  height: calc(100vh - 64px);
+  margin-top: 64px;
+  overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 340px; min-width: 340px;
+  background: rgba(6,13,24,0.97);
+  border-right: 1px solid var(--glass-border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+}
+.sidebar-header {
+  padding: 20px 20px 12px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+.sidebar-title {
+  font-family: var(--font-head); font-size: 1.2rem;
+  color: var(--primary); margin-bottom: 12px;
+}
+.sidebar-search {
+  position: relative; display: flex; align-items: center; margin-bottom: 12px;
+}
+.sidebar-search input {
+  width: 100%; height: 38px;
+  background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: 10px; padding: 0 36px 0 14px;
+  color: var(--text); font-size: 0.87rem;
+  transition: all var(--transition);
+}
+.sidebar-search input::placeholder { color: var(--text-dim); }
+.sidebar-search input:focus { border-color: var(--primary); background: rgba(0,229,195,0.08); }
+.sidebar-search .s-icon { position: absolute; right: 12px; color: var(--text-dim); font-size: 0.85rem; }
+
+/* Category filter pills */
+.cat-pills {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.cat-pill {
+  display: flex; align-items: center; gap: 4px;
+  padding: 5px 12px; border-radius: 20px;
+  font-size: 0.78rem; font-weight: 500; cursor: pointer;
+  border: 1px solid var(--glass-border);
+  background: var(--glass); color: var(--text-muted);
+  transition: all 0.2s;
+}
+.cat-pill.active {
+  border-color: var(--pc, rgba(0,229,195,0.4));
+  background: var(--pb, rgba(0,229,195,0.15));
+  color: var(--pc, var(--primary));
+}
+.cat-pill:hover { opacity: 0.85; }
+
+/* Spot list */
+.spot-list {
+  flex: 1; overflow-y: auto; padding: 12px;
+}
+.spot-list-item {
+  display: flex; gap: 12px;
+  padding: 12px; border-radius: var(--radius);
+  margin-bottom: 8px; cursor: pointer;
+  border: 1px solid transparent;
+  background: var(--glass);
+  transition: all 0.2s;
+}
+.spot-list-item:hover, .spot-list-item.active {
+  border-color: rgba(0,229,195,0.3);
+  background: rgba(0,229,195,0.06);
+}
+.spot-list-item.active { border-color: var(--primary); }
+.spot-thumb {
+  width: 60px; height: 60px; border-radius: 8px;
+  object-fit: cover; flex-shrink: 0;
+}
+.spot-info { flex: 1; min-width: 0; }
+.spot-name { font-size: 0.92rem; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spot-city { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+.spot-rating-row { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; }
+.spot-score { color: var(--gold); font-weight: 700; }
+.spot-reviews { color: var(--text-dim); }
+
+/* Sidebar footer */
+.sidebar-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  display: flex; gap: 8px;
+}
+.result-count { font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; flex: 1; }
+
+/* Map container */
+.map-container {
+  flex: 1; position: relative; overflow: hidden;
+}
+#map-chart {
+  width: 100%; height: 100%;
+}
+
+/* Map overlay UI */
+.map-controls {
+  position: absolute; top: 16px; right: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 10;
+}
+.map-ctrl-btn {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: rgba(6,13,24,0.9); border: 1px solid var(--glass-border);
+  color: var(--text); font-size: 1rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(16px); transition: all 0.2s;
+}
+.map-ctrl-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+/* City legend */
+.map-legend {
+  position: absolute; bottom: 24px; left: 16px;
+  background: rgba(6,13,24,0.88);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius); padding: 14px 16px;
+  backdrop-filter: blur(16px);
+  z-index: 10;
+}
+.legend-title { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.1em; }
+.legend-items { display: flex; flex-direction: column; gap: 5px; }
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text-muted); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* Spot popup panel (slide-in detail) */
+.spot-popup {
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: 320px; z-index: 20;
+  background: rgba(6,13,24,0.97);
+  border-left: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px);
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.spot-popup.open { transform: translateX(0); }
+.popup-img { width: 100%; height: 180px; object-fit: cover; }
+.popup-body { flex: 1; overflow-y: auto; padding: 16px; }
+.popup-name { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; line-height: 1.3; }
+.popup-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.popup-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 12px; }
+.popup-info { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.popup-info-row { display: flex; gap: 8px; font-size: 0.82rem; }
+.popup-info-icon { width: 16px; text-align: center; flex-shrink: 0; }
+.popup-info-text { color: var(--text-muted); }
+.popup-actions { display: flex; gap: 8px; padding: 16px; border-top: 1px solid var(--glass-border); flex-shrink: 0; }
+.popup-close {
+  position: absolute; top: 12px; right: 12px;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(0,0,0,0.5); color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 0.9rem; z-index: 2;
+  border: 1px solid var(--glass-border); transition: all 0.2s;
+}
+.popup-close:hover { background: rgba(255,107,122,0.3); border-color: var(--coral); }
+
+/* City select tabs */
+.city-tabs {
+  display: flex; gap: 4px; flex-wrap: wrap; padding: 0 20px 12px;
+}
+.city-tab {
+  padding: 3px 10px; border-radius: 6px; font-size: 0.75rem;
+  cursor: pointer; border: 1px solid var(--glass-border);
+  background: var(--glass); color: var(--text-muted);
+  transition: all 0.2s;
+}
+.city-tab.active, .city-tab:hover {
+  border-color: rgba(0,229,195,0.3); background: rgba(0,229,195,0.1);
+  color: var(--primary);
+}
+
+/* Mobile toggle */
+.sidebar-toggle {
+  display: none; position: absolute; left: 0; top: 50%;
+  transform: translateY(-50%); z-index: 30;
+  width: 24px; height: 60px;
+  background: rgba(0,229,195,0.8); border-radius: 0 8px 8px 0;
+  cursor: pointer; align-items: center; justify-content: center;
+  color: var(--bg-deep); font-size: 0.8rem;
+}
+@media (max-width: 768px) {
+  .sidebar { position: absolute; left: 0; top: 0; bottom: 0; z-index: 25; transform: translateX(-100%); transition: transform 0.3s; }
+  .sidebar.open { transform: none; }
+  .sidebar-toggle { display: flex; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Navbar ─────────────────────────────────────────────────── -->
+<nav class="navbar">
+  <div class="navbar-brand">
+    <span class="logo-icon">🌿</span>
+    <div>
+      <div>吉乡游</div>
+      <div class="brand-sub">JiVillage · 发现吉林乡野</div>
+    </div>
+  </div>
+  <div class="navbar-nav">
+    <a href="/index.html" class="nav-link">首页</a>
+    <a href="/map.html" class="nav-link active">地图</a>
+    <a href="/add.html" class="nav-btn">+ 上传资讯</a>
+  </div>
+</nav>
+
+<!-- ── Map Layout ──────────────────────────────────────────────── -->
+<div class="map-layout">
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">🗺 吉林乡村地图</div>
+      <div class="sidebar-search">
+        <input type="text" id="search-input" placeholder="搜索景点、城市、关键词…">
+        <span class="s-icon">🔍</span>
+      </div>
+      <!-- Category pills -->
+      <div class="cat-pills" id="cat-pills">
+        <div class="cat-pill active" data-cat="" style="--pc:var(--primary);--pb:var(--primary-dim)">全部</div>
+        <div class="cat-pill" data-cat="food" style="--pc:#ff8c42;--pb:rgba(255,140,66,0.15)">🍜 吃</div>
+        <div class="cat-pill" data-cat="stay" style="--pc:#a78bfa;--pb:rgba(167,139,250,0.15)">🏡 住</div>
+        <div class="cat-pill" data-cat="transport" style="--pc:#38bdf8;--pb:rgba(56,189,248,0.15)">🚌 行</div>
+        <div class="cat-pill" data-cat="sight" style="--pc:var(--primary);--pb:var(--primary-dim)">🏔 游</div>
+        <div class="cat-pill" data-cat="shop" style="--pc:var(--gold);--pb:var(--gold-dim)">🛍 购</div>
+        <div class="cat-pill" data-cat="fun" style="--pc:var(--coral);--pb:rgba(255,107,122,0.15)">🎪 娱</div>
+      </div>
+    </div>
+
+    <!-- City filter -->
+    <div class="city-tabs" id="city-tabs">
+      <div class="city-tab active" data-city="">全省</div>
+      <div class="city-tab" data-city="长春市">长春</div>
+      <div class="city-tab" data-city="吉林市">吉林</div>
+      <div class="city-tab" data-city="延边州">延边</div>
+      <div class="city-tab" data-city="白山市">白山</div>
+      <div class="city-tab" data-city="通化市">通化</div>
+      <div class="city-tab" data-city="白城市">白城</div>
+      <div class="city-tab" data-city="四平市">四平</div>
+      <div class="city-tab" data-city="松原市">松原</div>
+      <div class="city-tab" data-city="辽源市">辽源</div>
+    </div>
+
+    <!-- Spot list -->
+    <div class="spot-list" id="spot-list">
+      <div class="spinner"></div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="result-count" id="result-count">加载中…</div>
+      <a href="/add.html" class="btn btn-gold" style="padding:8px 14px;font-size:0.82rem">+ 添加</a>
+    </div>
+  </div>
+
+  <!-- Mobile sidebar toggle -->
+  <div class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()">☰</div>
+
+  <!-- Map -->
+  <div class="map-container">
+    <div id="map-chart"></div>
+
+    <!-- Map controls -->
+    <div class="map-controls">
+      <button class="map-ctrl-btn" onclick="resetZoom()" data-tip="重置视图">⊙</button>
+      <button class="map-ctrl-btn" onclick="zoomIn()" data-tip="放大">+</button>
+      <button class="map-ctrl-btn" onclick="zoomOut()" data-tip="缩小">−</button>
+    </div>
+
+    <!-- Legend -->
+    <div class="map-legend">
+      <div class="legend-title">图 例</div>
+      <div class="legend-items">
+        <div class="legend-item"><div class="legend-dot" style="background:#ff8c42"></div>美食</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#a78bfa"></div>住宿</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#38bdf8"></div>交通</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#00e5c3"></div>景点</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f5c842"></div>购物</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ff6b7a"></div>娱乐</div>
+      </div>
+    </div>
+
+    <!-- Spot Popup -->
+    <div class="spot-popup" id="spot-popup">
+      <div class="popup-close" onclick="closePopup()">✕</div>
+      <img class="popup-img" id="popup-img" src="" alt="">
+      <div class="popup-body" id="popup-body"></div>
+      <div class="popup-actions">
+        <a href="#" id="popup-detail-btn" class="btn btn-primary" style="flex:1;justify-content:center;padding:10px">查看详情</a>
+        <a href="#" id="popup-nav-btn" class="btn btn-ghost" style="padding:10px 14px" target="_blank">导航</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+// ── Constants ─────────────────────────────────────────────────
+const CAT_COLORS = { food:'#ff8c42', stay:'#a78bfa', transport:'#38bdf8', sight:'#00e5c3', shop:'#f5c842', fun:'#ff6b7a' };
+const CAT_ICONS  = { food:'🍜', stay:'🏡', transport:'🚌', sight:'🏔', shop:'🛍', fun:'🎪' };
+const CAT_NAMES  = { food:'美食', stay:'住宿', transport:'交通', sight:'景点', shop:'购物', fun:'娱乐' };
+
+// ── State ─────────────────────────────────────────────────────
+let allSpots = [];
+let filtered = [];
+let activeFilter = { cat: '', city: '', q: '' };
+let chart = null;
+let zoom = 1;
+
+// ── Parse URL params ──────────────────────────────────────────
+const urlParams = new URLSearchParams(location.search);
+if (urlParams.get('cat')) activeFilter.cat = urlParams.get('cat');
+if (urlParams.get('city')) activeFilter.city = urlParams.get('city');
+
+// ── ECharts map init ──────────────────────────────────────────
+async function initMap() {
+  // Load Jilin GeoJSON from DataV (free public API)
+  const geoRes = await fetch('https://geo.datav.aliyun.com/areas_v3/bound/220000_full.json');
+  const geoData = await geoRes.json();
+  echarts.registerMap('jilin', geoData);
+
+  chart = echarts.init(document.getElementById('map-chart'), null, { renderer: 'canvas' });
+  renderChart();
+
+  chart.on('click', 'series.scatter', (params) => {
+    if (params.data && params.data.id) showPopup(params.data.id);
+  });
+
+  window.addEventListener('resize', () => chart.resize());
+}
+
+function getOption(spots) {
+  const scatter = spots.map(s => ({
+    value: [s.lng, s.lat],
+    id: s.id, name: s.name, city: s.city, category: s.category,
+    rating: s.rating, price: s.price, img: s.img,
+    itemStyle: { color: CAT_COLORS[s.category] || '#00e5c3' }
+  }));
+
+  return {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: 'rgba(6,13,24,0.95)',
+      borderColor: 'rgba(255,255,255,0.12)',
+      borderWidth: 1,
+      textStyle: { color: '#e8f4f8', fontSize: 12 },
+      formatter: (p) => {
+        if (p.seriesType === 'scatter') {
+          return `<div style="font-weight:700;margin-bottom:4px">${p.data.name}</div>
+                  <div style="color:#7ea8c0">${CAT_ICONS[p.data.category]} ${CAT_NAMES[p.data.category]} · ${p.data.city}</div>
+                  <div style="color:#f5c842;margin-top:4px">${p.data.rating ? '⭐ ' + p.data.rating : '暂无评分'}</div>`;
+        }
+        return p.name;
+      }
+    },
+    geo: {
+      map: 'jilin',
+      roam: true,
+      zoom: 1.1,
+      center: [126.5, 43.6],
+      label: {
+        show: true,
+        color: 'rgba(255,255,255,0.5)',
+        fontSize: 10,
+        fontFamily: 'Noto Sans SC'
+      },
+      itemStyle: {
+        areaColor: 'rgba(0,229,195,0.04)',
+        borderColor: 'rgba(0,229,195,0.25)',
+        borderWidth: 1,
+        shadowColor: 'rgba(0,229,195,0.1)',
+        shadowBlur: 4
+      },
+      emphasis: {
+        label: { color: '#00e5c3', fontSize: 11 },
+        itemStyle: {
+          areaColor: 'rgba(0,229,195,0.12)',
+          borderColor: 'rgba(0,229,195,0.6)'
+        }
+      },
+      select: {
+        itemStyle: { areaColor: 'rgba(0,229,195,0.18)' }
+      }
+    },
+    series: [{
+      type: 'effectScatter',
+      coordinateSystem: 'geo',
+      data: scatter,
+      symbolSize: (val, params) => {
+        const r = params.data.rating || 4.5;
+        return Math.max(10, r * 2.5);
+      },
+      showEffectOn: 'render',
+      rippleEffect: {
+        brushType: 'stroke',
+        scale: 3.5,
+        period: 4
+      },
+      label: {
+        show: false,
+        formatter: '{b}',
+        position: 'right',
+        color: '#e8f4f8',
+        fontSize: 10
+      },
+      emphasis: {
+        scale: true,
+        label: { show: true }
+      },
+      zlevel: 1
+    }]
+  };
+}
+
+function renderChart() {
+  if (!chart) return;
+  chart.setOption(getOption(filtered), { replaceMerge: ['series'] });
+}
+
+// ── Fetch and filter spots ─────────────────────────────────────
+async function fetchSpots() {
+  const res = await fetch('/api/spots');
+  const { data } = await res.json();
+  allSpots = data;
+  applyFilter();
+}
+
+function applyFilter() {
+  filtered = allSpots.filter(s => {
+    if (activeFilter.cat && s.category !== activeFilter.cat) return false;
+    if (activeFilter.city && s.city !== activeFilter.city) return false;
+    if (activeFilter.q) {
+      const kw = activeFilter.q.toLowerCase();
+      if (!s.name.includes(kw) && !s.desc.includes(kw) && !s.city.includes(kw) &&
+          !s.tags.some(t => t.includes(kw))) return false;
+    }
+    return true;
+  });
+
+  renderSidebarList();
+  renderChart();
+  document.getElementById('result-count').textContent = `共 ${filtered.length} 个结果`;
+}
+
+// ── Sidebar list ──────────────────────────────────────────────
+function renderSidebarList() {
+  const list = document.getElementById('spot-list');
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>没有找到相关结果</p></div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(s => `
+    <div class="spot-list-item" id="li-${s.id}" onclick="showPopup('${s.id}')">
+      <img class="spot-thumb" src="${s.img}" alt="${s.name}" loading="lazy" onerror="this.src='https://picsum.photos/seed/${s.id}/120/120'">
+      <div class="spot-info">
+        <div class="spot-name">${s.name}</div>
+        <div class="spot-city"><span class="cat-badge ${s.category ? 'cat-' + s.category : ''}" style="padding:1px 6px;font-size:0.68rem">${CAT_ICONS[s.category]}</span> ${s.city}</div>
+        <div class="spot-rating-row">
+          <span class="spot-score">${s.rating || '-'}</span>
+          <span style="color:var(--gold)">${'★'.repeat(Math.round(s.rating || 0))}${'☆'.repeat(5 - Math.round(s.rating || 0))}</span>
+          <span class="spot-reviews">(${s.reviewCount}评)</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Popup ─────────────────────────────────────────────────────
+function showPopup(spotId) {
+  const spot = allSpots.find(s => s.id === spotId);
+  if (!spot) return;
+
+  // Highlight list item
+  document.querySelectorAll('.spot-list-item').forEach(el => el.classList.remove('active'));
+  const li = document.getElementById('li-' + spotId);
+  if (li) { li.classList.add('active'); li.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+
+  // Fill popup
+  document.getElementById('popup-img').src = spot.img;
+  document.getElementById('popup-detail-btn').href = `/spot.html?id=${spot.id}`;
+  document.getElementById('popup-nav-btn').href = `https://uri.amap.com/marker?position=${spot.lng},${spot.lat}&name=${encodeURIComponent(spot.name)}`;
+  document.getElementById('popup-body').innerHTML = `
+    <div class="popup-name">${spot.name}</div>
+    <div class="popup-meta">
+      <span class="cat-badge cat-${spot.category}">${CAT_ICONS[spot.category]} ${CAT_NAMES[spot.category]}</span>
+      <span style="font-size:0.8rem;color:var(--text-muted)">${spot.city}</span>
+      ${spot.rating ? `<span style="color:var(--gold);font-size:0.82rem;font-weight:700">⭐ ${spot.rating}</span>` : ''}
+    </div>
+    <div class="popup-desc">${spot.desc}</div>
+    <div class="popup-info">
+      ${spot.address ? `<div class="popup-info-row"><span class="popup-info-icon">📍</span><span class="popup-info-text">${spot.address}</span></div>` : ''}
+      ${spot.price ? `<div class="popup-info-row"><span class="popup-info-icon">💰</span><span class="popup-info-text">${spot.price}</span></div>` : ''}
+      ${spot.openHours ? `<div class="popup-info-row"><span class="popup-info-icon">🕐</span><span class="popup-info-text">${spot.openHours}</span></div>` : ''}
+      ${spot.phone ? `<div class="popup-info-row"><span class="popup-info-icon">📞</span><span class="popup-info-text">${spot.phone}</span></div>` : ''}
+    </div>
+    ${spot.tags.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px">${spot.tags.map(t => `<span class="tag" style="font-size:0.72rem">${t}</span>`).join('')}</div>` : ''}
+  `;
+
+  document.getElementById('spot-popup').classList.add('open');
+}
+
+function closePopup() {
+  document.getElementById('spot-popup').classList.remove('open');
+  document.querySelectorAll('.spot-list-item').forEach(el => el.classList.remove('active'));
+}
+
+// ── Zoom controls ─────────────────────────────────────────────
+function resetZoom() { chart && chart.setOption({ geo: { zoom: 1.1, center: [126.5, 43.6] } }); }
+function zoomIn()    { chart && chart.dispatchAction({ type: 'geoRoam', zoom: 1.3 }); }
+function zoomOut()   { chart && chart.dispatchAction({ type: 'geoRoam', zoom: 1/1.3 }); }
+
+// ── UI event listeners ────────────────────────────────────────
+document.getElementById('search-input').addEventListener('input', (e) => {
+  activeFilter.q = e.target.value.trim();
+  applyFilter();
+});
+
+document.getElementById('cat-pills').addEventListener('click', (e) => {
+  const pill = e.target.closest('.cat-pill');
+  if (!pill) return;
+  document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+  pill.classList.add('active');
+  activeFilter.cat = pill.dataset.cat || '';
+  applyFilter();
+});
+
+document.getElementById('city-tabs').addEventListener('click', (e) => {
+  const tab = e.target.closest('.city-tab');
+  if (!tab) return;
+  document.querySelectorAll('.city-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  activeFilter.city = tab.dataset.city || '';
+  applyFilter();
+});
+
+// Apply URL params to UI
+if (activeFilter.cat) {
+  document.querySelectorAll('.cat-pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.cat === activeFilter.cat);
+  });
+}
+if (activeFilter.city) {
+  document.querySelectorAll('.city-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.city === activeFilter.city);
+  });
+}
+
+// Mobile sidebar toggle
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ── Init ──────────────────────────────────────────────────────
+initMap().catch(err => {
+  console.error('Map load failed:', err);
+  document.getElementById('map-chart').innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);flex-direction:column;gap:16px">
+      <div style="font-size:3rem">🗺</div>
+      <div>地图加载失败，请检查网络连接</div>
+      <button onclick="location.reload()" class="btn btn-outline">重试</button>
+    </div>`;
+});
+fetchSpots();
+</script>
+</body>
+</html>
