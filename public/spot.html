@@ -324,8 +324,9 @@ body { padding-top: 64px; }
 
 <div id="toast-container"></div>
 
+<script src="/js/data.js"></script>
+<script src="/js/store.js"></script>
 <script>
-const CAT_ICONS  = { food:'🍜', stay:'🏡', transport:'🚌', sight:'🏔', shop:'🛍', fun:'🎪' };
 const CAT_NAMES  = { food:'美食', stay:'住宿', transport:'交通', sight:'景点', shop:'购物', fun:'娱乐' };
 const CAT_COLORS = { food:'cat-food', stay:'cat-stay', transport:'cat-transport', sight:'cat-sight', shop:'cat-shop', fun:'cat-fun' };
 const STAR_HINTS = ['', '很差', '一般', '还好', '不错', '很棒！'];
@@ -354,9 +355,8 @@ function stars(n, size = '1rem') {
 // ── Load Spot ─────────────────────────────────────────────────
 async function loadSpot() {
   if (!spotId) { location.href = '/map.html'; return; }
-  const res = await fetch(`/api/spots/${spotId}`);
-  const { data, success } = await res.json();
-  if (!success) { location.href = '/map.html'; return; }
+  const data = Store.getSpotById(spotId);
+  if (!data) { location.href = '/map.html'; return; }
   currentSpot = data;
   renderSpot(data);
   loadReviews();
@@ -425,9 +425,9 @@ function switchHero(el, src) {
 }
 
 // ── Load Reviews ──────────────────────────────────────────────
-async function loadReviews() {
-  const res = await fetch(`/api/spots/${spotId}/reviews`);
-  const { data, total } = await res.json();
+function loadReviews() {
+  const data = Store.getReviews(spotId);
+  const total = data.length;
   document.getElementById('review-total').textContent = total ? `（${total}条）` : '';
   const list = document.getElementById('review-list');
   if (!data.length) {
@@ -437,9 +437,7 @@ async function loadReviews() {
   list.innerHTML = data.map(r => `
     <div class="review-card anim-fade-up" id="rv-${r.id}">
       <div class="review-header">
-        ${r.avatar
-          ? `<img class="review-avatar" src="${r.avatar}" alt="">`
-          : `<div class="review-avatar">${r.author[0] || '游'}</div>`}
+        <div class="review-avatar">${(r.author||'游')[0]}</div>
         <div style="flex:1">
           <div class="review-author">${r.author || '游客'}</div>
           <div class="review-stars">${stars(r.rating, '0.85rem')}</div>
@@ -448,7 +446,7 @@ async function loadReviews() {
       </div>
       <div class="review-content">${escHtml(r.content)}</div>
       <div class="review-actions">
-        <button class="helpful-btn" id="hb-${r.id}" onclick="markHelpful('${r.id}')">
+        <button class="helpful-btn ${Store.isHelpfulLiked(r.id)?'liked':''}" id="hb-${r.id}" onclick="markHelpful('${r.id}')">
           👍 有用 <span id="hc-${r.id}">${r.helpful || 0}</span>
         </button>
       </div>
@@ -473,24 +471,16 @@ document.getElementById('review-content').addEventListener('input', e => {
 
 // ── Submit review ─────────────────────────────────────────────
 async function submitReview() {
-  const author = document.getElementById('review-author').value.trim();
+  const author  = document.getElementById('review-author').value.trim();
   const content = document.getElementById('review-content').value.trim();
-  const btn = document.getElementById('submit-review-btn');
+  const btn     = document.getElementById('submit-review-btn');
 
   if (!selectedRating) { showToast('请选择评分', 'error'); return; }
   if (content.length < 5) { showToast('评价内容不能少于5个字', 'error'); return; }
 
   btn.disabled = true; btn.textContent = '发布中…';
   try {
-    const body = new FormData();
-    body.append('author', author || '游客');
-    body.append('rating', selectedRating);
-    body.append('content', content);
-
-    const res = await fetch(`/api/spots/${spotId}/reviews`, { method: 'POST', body });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.message);
-
+    Store.addReview({ spotId, author, rating: selectedRating, content });
     showToast('评价发布成功！感谢你的分享 🎉');
     document.getElementById('review-author').value = '';
     document.getElementById('review-content').value = '';
@@ -499,43 +489,38 @@ async function submitReview() {
     document.querySelectorAll('.star-btn').forEach(b => b.classList.remove('lit'));
     selectedRating = 0;
     loadReviews();
-    // Refresh rating
-    const sRes = await fetch(`/api/spots/${spotId}`);
-    const { data: sd } = await sRes.json();
-    if (sd.rating) {
+    // 刷新评分显示
+    const sd = Store.getSpotById(spotId);
+    if (sd && sd.rating) {
       document.getElementById('score-num').textContent = sd.rating;
       document.getElementById('score-stars').innerHTML = stars(sd.rating, '0.9rem');
       document.getElementById('score-count').textContent = `${sd.reviewCount} 条评价`;
       document.getElementById('hero-score').style.display = 'flex';
     }
   } catch(err) {
-    showToast(err.message || '发布失败，请重试', 'error');
+    showToast('发布失败，请重试', 'error');
   } finally {
     btn.disabled = false; btn.textContent = '发布评价';
   }
 }
 
 // ── Helpful vote ──────────────────────────────────────────────
-const likedReviews = new Set(JSON.parse(localStorage.getItem('liked') || '[]'));
-async function markHelpful(reviewId) {
-  if (likedReviews.has(reviewId)) { showToast('你已经点过有用了', 'error'); return; }
-  const res = await fetch(`/api/reviews/${reviewId}/helpful`, { method: 'POST' });
-  const { data } = await res.json();
-  likedReviews.add(reviewId);
-  localStorage.setItem('liked', JSON.stringify([...likedReviews]));
-  document.getElementById('hc-' + reviewId).textContent = data.helpful;
-  document.getElementById('hb-' + reviewId).classList.add('liked');
+function markHelpful(reviewId) {
+  if (Store.isHelpfulLiked(reviewId)) { showToast('你已经点过有用了', 'error'); return; }
+  const r = Store.markHelpful(reviewId);
+  if (r) {
+    document.getElementById('hc-' + reviewId).textContent = r.helpful;
+    document.getElementById('hb-' + reviewId).classList.add('liked');
+  }
 }
 
 // ── Nearby ────────────────────────────────────────────────────
-async function loadNearby(city, excludeId) {
-  const res = await fetch(`/api/spots?city=${encodeURIComponent(city)}`);
-  const { data } = await res.json();
-  const nearby = data.filter(s => s.id !== excludeId).slice(0, 4);
+function loadNearby(city, excludeId) {
+  const nearby = Store.querySpots({ city }).filter(s => s.id !== excludeId).slice(0, 4);
   if (!nearby.length) { document.getElementById('nearby-card').style.display = 'none'; return; }
   document.getElementById('nearby-list').innerHTML = nearby.map(s => `
     <a href="/spot.html?id=${s.id}" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--glass-border);cursor:pointer">
-      <img src="${s.img}" style="width:44px;height:44px;border-radius:8px;object-fit:cover" loading="lazy">
+      <img src="${s.img}" style="width:44px;height:44px;border-radius:8px;object-fit:cover" loading="lazy" onerror="this.src='https://picsum.photos/seed/${s.id}/88/88'">
       <div style="flex:1;min-width:0">
         <div style="font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
         <div style="font-size:0.72rem;color:var(--text-muted)">${CAT_ICONS[s.category]} ${s.rating || '新'}</div>

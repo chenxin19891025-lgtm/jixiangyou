@@ -315,13 +315,14 @@ body { padding-top: 64px; background: var(--bg-deep); }
 
       <!-- Step 4: Images -->
       <div class="form-card">
-        <div class="form-card-title">🖼 上传图片 <span style="font-size:0.8rem;font-weight:400;color:var(--text-muted)">（最多5张，每张≤5MB）</span></div>
-        <div class="upload-area" id="upload-area">
-          <div class="u-icon">📷</div>
-          <p>拖拽图片到此处，或点击选择图片</p>
-          <small>支持 JPG、PNG、WEBP 格式</small>
+        <div class="form-card-title">🖼 添加图片链接 <span style="font-size:0.8rem;font-weight:400;color:var(--text-muted)">（可选，最多5张）</span></div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input class="form-input" id="img-url-input" placeholder="粘贴图片URL，例：https://..." style="flex:1">
+          <button onclick="addImgUrl()" class="btn btn-ghost" style="padding:10px 16px;white-space:nowrap">添加</button>
         </div>
-        <input type="file" id="file-input" accept="image/*" multiple style="display:none">
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:10px">
+          💡 可从微信图片、小红书、景点官网等复制图片链接，或留空系统将自动配图
+        </div>
         <div class="img-previews" id="img-previews"></div>
       </div>
 
@@ -383,9 +384,11 @@ body { padding-top: 64px; background: var(--bg-deep); }
 
 <div id="toast-container"></div>
 
+<script src="/js/data.js"></script>
+<script src="/js/store.js"></script>
 <script>
 let selectedCat = '';
-let fileList = [];
+let imgUrls = [];
 
 // ── Toast ─────────────────────────────────────────────────────
 function showToast(msg, type='success') {
@@ -414,7 +417,7 @@ function updateSteps() {
     const el = document.getElementById('step-' + i);
     el.classList.remove('active','done');
   });
-  if (fileList.length > 0) {
+  if (imgUrls.length > 0) {
     [1,2,3].forEach(i => document.getElementById('step-'+i).classList.add('done'));
     document.getElementById('step-4').classList.add('active');
   } else if (name && city && desc) {
@@ -438,54 +441,41 @@ document.getElementById('f-desc').addEventListener('input', e => {
   document.getElementById(id).addEventListener('change', updateSteps);
 });
 
-// ── Image upload ──────────────────────────────────────────────
-const uploadArea = document.getElementById('upload-area');
-const fileInput = document.getElementById('file-input');
-
-uploadArea.addEventListener('click', () => fileInput.click());
-uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
-uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-uploadArea.addEventListener('drop', e => {
-  e.preventDefault(); uploadArea.classList.remove('dragover');
-  handleFiles([...e.dataTransfer.files]);
-});
-fileInput.addEventListener('change', e => handleFiles([...e.target.files]));
-
-function handleFiles(files) {
-  const valid = files.filter(f => f.type.startsWith('image/') && f.size <= 5*1024*1024);
-  if (files.length !== valid.length) showToast('部分图片不合法（非图片或超过5MB）', 'error');
-  const toAdd = valid.slice(0, 5 - fileList.length);
-  fileList = [...fileList, ...toAdd];
-  renderPreviews();
+// ── Image URL input ───────────────────────────────────────────
+function addImgUrl() {
+  const input = document.getElementById('img-url-input');
+  const url = input.value.trim();
+  if (!url) return;
+  if (imgUrls.length >= 5) { showToast('最多添加5张图片', 'error'); return; }
+  if (!url.startsWith('http')) { showToast('请输入有效的图片链接（http/https开头）', 'error'); return; }
+  imgUrls.push(url);
+  input.value = '';
+  renderImgPreviews();
   updateSteps();
 }
 
-function renderPreviews() {
+function renderImgPreviews() {
   const container = document.getElementById('img-previews');
-  container.innerHTML = fileList.map((f, i) => {
-    const url = URL.createObjectURL(f);
-    return `<div class="preview-wrap">
-      <img class="preview-img" src="${url}" alt="">
+  container.innerHTML = imgUrls.map((url, i) => `
+    <div class="preview-wrap">
+      <img class="preview-img" src="${url}" alt="" onerror="this.style.background='var(--glass)'">
       <button class="preview-remove" onclick="removeImg(${i})">✕</button>
-    </div>`;
-  }).join('');
-  uploadArea.style.display = fileList.length >= 5 ? 'none' : 'block';
+    </div>`).join('');
 }
 
 function removeImg(idx) {
-  fileList.splice(idx, 1);
-  renderPreviews();
+  imgUrls.splice(idx, 1);
+  renderImgPreviews();
   updateSteps();
 }
 
 // ── Submit ────────────────────────────────────────────────────
-async function submitForm() {
+function submitForm() {
   const name = document.getElementById('f-name').value.trim();
   const city = document.getElementById('f-city').value;
   const desc = document.getElementById('f-desc').value.trim();
   const errEl = document.getElementById('form-error');
 
-  // Validate
   if (!selectedCat) {
     document.getElementById('cat-error').style.display = 'block';
     document.getElementById('cat-grid').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -507,32 +497,27 @@ async function submitForm() {
   btn.disabled = true; btn.textContent = '⏳ 提交中…';
 
   try {
-    const body = new FormData();
-    body.append('name', name);
-    body.append('category', selectedCat);
-    body.append('city', city);
-    body.append('address', document.getElementById('f-address').value.trim());
-    body.append('desc', desc);
-    body.append('tags', document.getElementById('f-tags').value.trim());
-    body.append('price', document.getElementById('f-price').value.trim());
-    body.append('openHours', document.getElementById('f-hours').value.trim());
-    body.append('phone', document.getElementById('f-phone').value.trim());
-    body.append('lat', document.getElementById('f-lat').value || '43.8');
-    body.append('lng', document.getElementById('f-lng').value || '126.5');
-    fileList.forEach(f => body.append('images', f));
-
-    const res = await fetch('/api/spots', { method: 'POST', body });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.message);
-
-    // Show success
-    document.getElementById('success-name').textContent = '「' + data.data.name + '」已成功上传';
-    document.getElementById('view-spot-btn').href = `/spot.html?id=${data.data.id}`;
+    const tags = document.getElementById('f-tags').value.trim();
+    const img = imgUrls[0] || `https://picsum.photos/seed/${Date.now()}/600/400`;
+    const spot = Store.addSpot({
+      name, category: selectedCat, city,
+      address: document.getElementById('f-address').value.trim(),
+      desc,
+      tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+      price: document.getElementById('f-price').value.trim(),
+      openHours: document.getElementById('f-hours').value.trim(),
+      phone: document.getElementById('f-phone').value.trim(),
+      lat: parseFloat(document.getElementById('f-lat').value) || 43.8,
+      lng: parseFloat(document.getElementById('f-lng').value) || 126.5,
+      img, imgs: imgUrls
+    });
+    document.getElementById('success-name').textContent = '「' + spot.name + '」已成功上传';
+    document.getElementById('view-spot-btn').href = `/spot.html?id=${spot.id}`;
     document.getElementById('success-overlay').classList.add('show');
   } catch(err) {
-    errEl.textContent = err.message || '提交失败，请重试';
+    errEl.textContent = '提交失败，请重试';
     errEl.style.display = 'block';
-    showToast('提交失败：' + (err.message || '请重试'), 'error');
+    showToast('提交失败，请重试', 'error');
   } finally {
     btn.disabled = false; btn.textContent = '🌿 发布乡村资讯';
   }
@@ -540,21 +525,13 @@ async function submitForm() {
 
 function addMore() {
   document.getElementById('success-overlay').classList.remove('show');
-  // Reset form
-  document.getElementById('f-name').value = '';
-  document.getElementById('f-city').value = '';
-  document.getElementById('f-address').value = '';
-  document.getElementById('f-desc').value = '';
-  document.getElementById('f-tags').value = '';
-  document.getElementById('f-price').value = '';
-  document.getElementById('f-hours').value = '';
-  document.getElementById('f-phone').value = '';
-  document.getElementById('f-lat').value = '';
-  document.getElementById('f-lng').value = '';
+  ['f-name','f-city','f-address','f-desc','f-tags','f-price','f-hours','f-phone','f-lat','f-lng'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
   document.getElementById('desc-char').textContent = '0/500';
   document.querySelectorAll('.cat-option').forEach(o => o.classList.remove('selected'));
-  selectedCat = ''; fileList = [];
-  renderPreviews();
+  selectedCat = ''; imgUrls = [];
+  renderImgPreviews();
   updateSteps();
 }
 

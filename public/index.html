@@ -473,8 +473,9 @@ body { overflow-x: hidden; }
 
 <div id="toast-container"></div>
 
-<script>
-// ── Canvas 粒子雪花效果 ─────────────────────────────────────────
+<script src="/js/data.js"></script>
+<script src="/js/store.js"></script>
+<script> ─────────────────────────────────────────
 (function() {
   const canvas = document.getElementById('bg-canvas');
   const ctx = canvas.getContext('2d');
@@ -563,18 +564,13 @@ function animateCounter(el, target, suffix = '') {
 }
 
 // ── Load stats ────────────────────────────────────────────────
-fetch('/api/stats').then(r => r.json()).then(data => {
-  setTimeout(() => {
-    animateCounter(document.getElementById('stat-spots'), data.totalSpots);
-    animateCounter(document.getElementById('stat-cities'), data.totalCities);
-    animateCounter(document.getElementById('stat-reviews'), data.totalReviews);
-    document.getElementById('counter-spots').textContent = data.totalSpots;
-  }, 1500);
-}).catch(() => {
-  document.getElementById('stat-spots').textContent = '22';
-  document.getElementById('stat-cities').textContent = '9';
-  document.getElementById('stat-reviews').textContent = '0';
-});
+setTimeout(() => {
+  const data = Store.getStats();
+  animateCounter(document.getElementById('stat-spots'), data.totalSpots);
+  animateCounter(document.getElementById('stat-cities'), data.totalCities);
+  animateCounter(document.getElementById('stat-reviews'), data.totalReviews);
+  document.getElementById('counter-spots').textContent = data.totalSpots;
+}, 1500);
 
 // ── Load featured spots ───────────────────────────────────────
 const CAT_ICONS = { food:'🍜', stay:'🏡', transport:'🚌', sight:'🏔', shop:'🛍', fun:'🎪' };
@@ -615,12 +611,8 @@ function spotCard(spot) {
   </div>`;
 }
 
-fetch('/api/spots').then(r => r.json()).then(({ data }) => {
-  const featured = data.sort((a, b) => b.rating - a.rating).slice(0, 8);
-  document.getElementById('featured-grid').innerHTML = featured.map(spotCard).join('');
-}).catch(() => {
-  document.getElementById('featured-grid').innerHTML = '<div class="empty-state"><div class="icon">🌿</div><p>暂无数据</p></div>';
-});
+const featured = Store.getAllSpots().sort((a, b) => b.rating - a.rating).slice(0, 8);
+document.getElementById('featured-grid').innerHTML = featured.map(spotCard).join('');
 
 // ── Navbar scroll effect ──────────────────────────────────────
 window.addEventListener('scroll', () => {

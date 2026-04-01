@@ -317,8 +317,9 @@ body { display: flex; flex-direction: column; }
 
 <div id="toast-container"></div>
 
+<script src="/js/data.js"></script>
+<script src="/js/store.js"></script>
 <script>
-// ── Constants ─────────────────────────────────────────────────
 const CAT_COLORS = { food:'#ff8c42', stay:'#a78bfa', transport:'#38bdf8', sight:'#00e5c3', shop:'#f5c842', fun:'#ff6b7a' };
 const CAT_ICONS  = { food:'🍜', stay:'🏡', transport:'🚌', sight:'🏔', shop:'🛍', fun:'🎪' };
 const CAT_NAMES  = { food:'美食', stay:'住宿', transport:'交通', sight:'景点', shop:'购物', fun:'娱乐' };
@@ -442,10 +443,8 @@ function renderChart() {
 }
 
 // ── Fetch and filter spots ─────────────────────────────────────
-async function fetchSpots() {
-  const res = await fetch('/api/spots');
-  const { data } = await res.json();
-  allSpots = data;
+function fetchSpots() {
+  allSpots = Store.getAllSpots();
   applyFilter();
 }
 
