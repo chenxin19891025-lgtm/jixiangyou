@@ -338,8 +338,8 @@ if (urlParams.get('city')) activeFilter.city = urlParams.get('city');
 
 // ── ECharts map init ──────────────────────────────────────────
 async function initMap() {
-  // Load Jilin GeoJSON from DataV (free public API)
-  const geoRes = await fetch('https://geo.datav.aliyun.com/areas_v3/bound/220000_full.json');
+  // 加载本地 GeoJSON（已下载，无跨域问题）
+  const geoRes = await fetch('/js/jilin.json');
   const geoData = await geoRes.json();
   echarts.registerMap('jilin', geoData);
 
